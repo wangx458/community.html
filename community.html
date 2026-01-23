@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>素人写作研究 - 单文件版</title>
+  <!-- 通过 CDN 引入所有依赖，无需 npm install -->
+  <script src="https://unpkg.com/vue@3.4.0/dist/vue.global.js"></script>
+  <script src="https://unpkg.com/vue-router@4.2.5/dist/vue-router.global.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus@2.4.4/dist/index.css">
+  <script src="https://unpkg.com/element-plus@2.4.4/dist/index.full.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; }
+    .navbar { background: #fff; border-bottom: 1px solid #e4e7ed; padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 24px; font-weight: bold; color: #409eff; cursor: pointer; }
+    .nav-right { display: flex; gap: 15px; align-items: center; }
+    .main-container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+    .article-card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; cursor: pointer; transition: transform 0.3s; }
+    .article-card:hover { transform: translateY(-4px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .article-title { font-size: 20px; font-weight: 600; margin-bottom: 10px; color: #303133; }
+    .article-summary { color: #606266; line-height: 1.8; margin-bottom: 15px; }
+    .article-meta { display: flex; gap: 15px; font-size: 14px; color: #909399; margin-bottom: 10px; }
+    .tags { display: flex; gap: 8px; margin-bottom: 10px; }
+    .tag { color: #409eff; font-size: 14px; }
+    .actions { display: flex; gap: 20px; color: #909399; }
+    .article-detail { background: #fff; padding: 40px; border-radius: 8px; margin-bottom: 20px; }
+    .article-header { text-align: center; margin-bottom: 30px; }
+    .article-header h1 { font-size: 32px; margin-bottom: 20px; color: #303133; }
+    .article-content { line-height: 1.8; color: #606266; margin-bottom: 40px; }
+    .comments-section { background: #fff; padding: 30px; border-radius: 8px; }
+    .comment-item { padding: 20px 0; border-bottom: 1px solid #ebeef5; }
+    .comment-author { font-weight: 600; margin-bottom: 8px; }
+    .comment-input { margin-top: 20px; }
+    .login-form { max-width: 400px; margin: 100px auto; background: #fff; padding: 40px; border-radius: 8px; }
+    .form-title { text-align: center; margin-bottom: 30px; font-size: 24px; }
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    // 模拟数据库数据
+    const mockArticles = [
+      {
+        id: 1,
+        title: '网络写作时代的民间记忆档案',
+        summary: '在互联网普及的今天，普通人通过博客、社交媒体记录生活，形成了独特的民间档案。这些文字记录了时代变迁中的个体经验，构成了鲜活的集体记忆。',
+        author: '李文静',
+        date: '2024-01-15',
+        tags: ['网络写作', '民间档案', '社会记忆'],
+        content: '完整文章内容：互联网的发展使得每个人都有了发声的渠道...',
+        likes: 156,
+        collections: 89
+      },
+      {
+        id: 2,
+        title: '从论坛到短视频：素人表达形式的演进',
+        summary: '从早期的BBS、博客，到现在的微信公众号、抖音快手，普通网民的表达形式经历了从纯文字到多媒体融合的巨大转变。',
+        author: '张明远',
+        date: '2024-01-12',
+        tags: ['媒介演变', '数字人文', '内容创作'],
+        content: '回望中国互联网发展的二十余年...',
+        likes: 234,
+        collections: 167
+      }
+    ];
+
+    const mockComments = [
+      {
+        id: 1,
+        author: '学术爱好者',
+        content: '非常有见地的分析！民间写作确实为历史研究提供了宝贵的一手资料。',
+        time: '2024-01-16 14:30'
+      }
+    ];
+
+    // 模拟 API 延迟
+    const mockAPI = {
+      delay: (ms = 300) => new Promise(resolve => setTimeout(resolve, ms)),
+      
+      async register(userData) {
+        await this.delay();
+        if (userData.email === 'test@example.com') {
+          throw new Error('邮箱已被注册');
+        }
+        return { id: Date.now(), ...userData };
+      },
+      
+      async login(credentials) {
+        await this.delay();
+        if (credentials.email === 'test@example.com' && credentials.password === 'TestPass123') {
+          return {
+            token: 'mock-jwt-token-' + Date.now(),
+            user: { id: 1, username: '测试用户', email: credentials.email }
+          };
+        }
+        throw new Error('邮箱或密码错误');
+      },
+      
+      async getArticles() {
+        await this.delay();
+        return mockArticles;
+      },
+      
+      async getArticle(id) {
+        await this.delay();
+        const article = mockArticles.find(a => a.id === parseInt(id));
+        if (!article) throw new Error('文章不存在');
+        return {
+          ...article,
+          comments: mockComments
+        };
+      },
+      
+      async createComment(articleId, content) {
+        await this.delay();
+        return {
+          id: Date.now(),
+          author: '当前用户',
+          content,
+          time: new Date().toLocaleString()
+        };
+      }
+    };
+
+    // Vue 组件定义
+    const HomePage = {
+      template: `
+        <div>
+          <div class="navbar">
+            <div class="logo" @click="$router.push('/')">素人写作研究</div>
+            <div class="nav-right">
+              <template v-if="!$root.isAuthenticated">
+                <el-button type="primary" @click="$router.push('/login')">登录</el-button>
+                <el-button>注册</el-button>
+              </template>
+              <template v-else>
+                <span style="color: #909399;">{{ $root.currentUser.username }}</span>
+                <el-avatar icon="UserFilled" :size="40" />
+              </template>
+            </div>
+          </div>
+          
+          <div class="main-container">
+            <h2 style="margin-bottom: 30px; color: #303133;">最新文章</h2>
+            
+            <div v-if="loading" style="text-align: center; padding: 40px;">
+              <el-icon size="large" class="is-loading"><Loading /></el-icon>
+              <p>加载中...</p>
+            </div>
+            
+            <div v-else>
+              <div v-for="article in articles" :key="article.id" class="article-card" @click="$router.push('/article/' + article.id)">
+                <h3 class="article-title">{{ article.title }}</h3>
+                <p class="article-summary">{{ article.summary }}</p>
+                
+                <div class="article-meta">
+                  <el-icon><UserFilled /></el-icon>
+                  <span>{{ article.author }}</span>
+                  <span>·</span>
+                  <span>{{ article.date }}</span>
+                </div>
+
+                <div class="tags">
+                  <span v-for="tag in article.tags" :key="tag" class="tag">#{{ tag }}</span>
+                </div>
+
+                <div class="actions">
+                  <span><el-icon><Pointer /></el-icon> {{ article.likes }}</span>
+                  <span><el-icon><Star /></el-icon> {{ article.collections }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `,
+      data() {
+        return {
+          articles: [],
+          loading: true
+        };
+      },
+      async mounted() {
+        try {
+          this.articles = await mockAPI.getArticles();
+        } catch (error) {
+          ElMessage.error('加载文章失败');
+        } finally {
+          this.loading = false;
+        }
+      }
+    };
+
+    const ArticleDetail = {
+      template: `
+        <div class="main-container">
+          <el-button @click="$router.back()" link>
+            <el-icon><ArrowLeft /></el-icon> 返回首页
+          </el-button>
+          
+          <div v-if="loading" style="text-align: center; padding: 40px;">
+            <el-icon size="large" class="is-loading"><Loading /></el-icon>
+          </div>
+          
+          <div v-else-if="article">
+            <div class="article-detail">
+              <div class="article-header">
+                <h1>{{ article.title }}</h1>
+                <div class="article-meta">
+                  <span>{{ article.author }}</span>
+                  <span>·</span>
+                  <span>{{ article.date }}</span>
+                  <span>·</span>
+                  <span>阅读时间：{{ article.readTime }}分钟</span>
+                </div>
+              </div>
+              
+              <div class="article-content">
+                <p>{{ article.content }}</p>
+              </div>
+            </div>
+
+            <div class="comments-section">
+              <h3>评论区</h3>
+              
+              <div v-for="comment in article.comments" :key="comment.id" class="comment-item">
+                <div class="comment-author">{{ comment.author }}</div>
+                <div class="comment-content">{{ comment.content }}</div>
+                <div class="comment-time">{{ comment.time }}</div>
+              </div>
+
+              <div class="comment-input" v-if="$root.isAuthenticated">
+                <el-input
+                  v-model="newComment"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="写下你的评论..."
+                />
+                <el-button type="primary" style="margin-top: 10px; float: right;" @click="submitComment">
+                  发表评论
+                </el-button>
+                <div style="clear: both;"></div>
+              </div>
+              
+              <div v-else style="text-align: center; padding: 40px; color: #909399;">
+                请登录后发表评论
+              </div>
+            </div>
+          </div>
+        </div>
+      `,
+      data() {
+        return {
+          article: null,
+          loading: true,
+          newComment: ''
+        };
+      },
+      async mounted() {
+        try {
+          this.article = await mockAPI.getArticle(this.$route.params.id);
+        } catch (error) {
+          ElMessage.error('加载文章失败');
+          this.$router.push('/');
+        } finally {
+          this.loading = false;
+        }
+      },
+      methods: {
+        async submitComment() {
+          if (!this.newComment.trim()) {
+            ElMessage.warning('请输入评论内容');
+            return;
+          }
+          try {
+            const comment = await mockAPI.createComment(this.article.id, this.newComment);
+            this.article.comments.push(comment);
+            this.newComment = '';
+            ElMessage.success('评论发表成功');
+          } catch (error) {
+            ElMessage.error('发表评论失败');
+          }
+        }
+      }
+    };
+
+    const LoginPage = {
+      template: `
+        <div class="login-form">
+          <h2 class="form-title">登录</h2>
+          <el-form :model="form" label-width="0">
+            <el-form-item>
+              <el-input v-model="form.email" placeholder="邮箱" />
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="form.password" type="password" placeholder="密码" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="login" style="width: 100%;">登录</el-button>
+            </el-form-item>
+            <p style="text-align: center; color: #909399;">
+              测试账号：test@example.com / TestPass123
+            </p>
+          </el-form>
+        </div>
+      `,
+      data() {
+        return {
+          form: { email: '', password: '' }
+        };
+      },
+      methods: {
+        async login() {
+          if (!this这个.form.email || !this这个.form.password) {
+            ElMessage.warning('请输入邮箱和密码');
+            return;
+          }
+          try {
+            const result = await mockAPI.login(this这个.form);
+            this这个.$root.setAuth(result.token, result.user用户);
+            ElMessage.success('登录成功');
+            this这个.$router.push('/');
+          } catch (error) {
+            ElMessage.error(error.message);
+          }
+        }
+      }
+    };
+
+    // 路由配置
+    const routes = [
+      { path: '/', component: HomePage },
+      { path: '/article/:id', component: ArticleDetail },
+      { path: '/login', component: LoginPage }
+    ];
+
+    const router = VueRouter.createRouter({
+      history: VueRouter.createWebHashHistory(),
+      routes路由
+    });
+
+    // 主应用
+    const App = {
+      template: `
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      `,
+      data() {
+        return {
+          isAuthenticated: false,
+          currentUser当前用户: null
+        };
+      },
+      methods: {
+        setAuth(token, user用户) {
+          this这个.isAuthenticated = true;
+          this这个.currentUser当前用户 = user用户;
+          localStorage.setItem('token', token);
+          localStorage.setItem('user''用户', JSON.stringify(user用户));
+        },
+        logout() {
+          this这个.isAuthenticated = false;
+          this这个.currentUser当前用户 = null;
+          localStorage.removeItem('token');
+          localStorage.removeItem('user''用户');
+        }
+      },
+      mounted() {已挂载() {
+        const token = localStorage.getItem('token');
+        const user用户 = localStorage.getItem('user''用户');
+        if (token && user用户) {
+          this这个.isAuthenticated = true;
+          this这个.currentUser当前用户 = JSON.parse(user用户);
+        }
+      }
+    };
+
+    // 挂载应用
+    const app应用 = Vue.createApp(App应用);
+    app应用.use使用(router路由);应用.使用(router路由);
+    app应用.use使用(ElementPlus);应用.使用(ElementPlus);
+    for用于 (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+      app应用.component(key, component);
+    }
+    app应用.mount挂载('#app');
+  </script脚本>
+</body>
+    </html>
